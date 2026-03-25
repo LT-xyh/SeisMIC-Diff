@@ -3,4 +3,5 @@
 **/__pycache__/*
 src/logs/
 src/data/openfwi
-**.ckpt
+src/ckpt_path/ddpm_diffusion_valssim0.918.ckpt
+src/ckpt_path/autoencoder_kl_loss0.0082.ckpt
