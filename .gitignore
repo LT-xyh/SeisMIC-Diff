@@ -1,5 +1,6 @@
 .idea/
 .vscode/
 **/__pycache__/*
-./src/logs/
-./src/data/openfwi/
+src/logs/
+src/data/openfwi
+src/ckpt_path/

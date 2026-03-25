@@ -1,0 +1,58 @@
+datasets:
+  use_data: [ 'depth_vel', ] # ('depth_vel', 'time_vel', 'migrated_image', 'well_log', 'horizon', 'rms_vel')
+  dataset_name: [ 'FlatVelA', 'FlatVelB', 'CurveVelA', 'CurveVelB' ]
+  use_normalize: '-1_1'  # '01' '-1_1'
+  depth_velocity:
+    shape: [ 1, 70, 70 ]
+
+autoencoder_conf:
+  reshape: [ 16, 64, 64 ]
+  down_block_types: [ "DownEncoderBlock2D", "DownEncoderBlock2D", "DownEncoderBlock2D" ]
+  up_block_types: [ "UpDecoderBlock2D", "UpDecoderBlock2D", "UpDecoderBlock2D" ]
+  block_out_channels: [ 64, 128, 256 ]
+  latent_channels: 16
+
+training:
+  loss:
+    l1_weight: 1.0
+    mse_weight: 0.1
+    kl_weight: 5e-6
+
+    kl_anneal:
+      strategy: cyclic_epoch   # 循环退火
+      warmup_epochs: 25        # 每个 cycle 的升温段占 1/2（取 25/50）
+      cycles: 3
+      ratio: 0.5
+      start: 0.0
+      end: 2e-6
+
+
+  lr: 1e-4
+  use_ema: True
+  gradient_clip_val: 1.0
+
+  max_epochs: 150
+  min_epochs: 50
+  device: [ 0, ]
+  precision: 'bf16-mixed'
+
+  dataloader:
+    batch_size: 200
+    num_workers: 2
+    prefetch_factor: 4
+
+  logging:
+    log_dir: 'logs/autoencoder/autoencoder_kl/'
+    log_version: ''
+
+  callbacks:
+    early_stopping:
+      monitor: 'val/loss'
+      mode: 'min'
+      patience: 10
+
+    checkpoint:
+      filename: 'epoch_{epoch}-loss{val/loss:.4f}'
+      save_top_k: 3
+      monitor: 'val/loss'
+      mode: 'min'

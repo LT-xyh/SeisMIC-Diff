@@ -1,0 +1,54 @@
+datasets:
+  use_data: [ 'depth_vel', 'migrated_image', 'well_log', 'horizon', 'rms_vel' ] # ('depth_vel', 'time_vel', 'migrated_image', 'well_log', 'horizon', 'rms_vel')
+  dataset_name:  ['FlatVelA', 'FlatVelB', 'CurveVelA', 'CurveVelB']#[ 'CurveVelA', ]
+  use_normalize: '-1_1'  # '01' '-1_1'
+  depth_velocity:
+    shape: [ 1, 70, 70 ]
+
+autoencoder_conf:
+  autoencoder_checkpoint_path: 'ckpt_path/autoencoder_kl_loss0.0082.ckpt'
+
+latent_diffusion:
+  scheduler:
+    scheduler_type: 'ddpm'
+    num_train_timesteps: 200
+    num_val_timesteps: 10
+    num_test_timesteps: 200
+  cond:
+    model_mode: 'crossattn'
+
+training:
+  lr: 1e-4
+  use_ema: True
+  gradient_clip_val: 1.0
+
+  max_epochs: 150
+  min_epochs: 50
+  device: [ 0, ]
+  precision: 'bf16-mixed'
+
+  dataloader:
+    batch_size: 50
+    num_workers: 2
+    prefetch_factor: 3
+
+  logging:
+    log_dir: 'logs/ddpm_diffusion/'
+    log_version: ''
+
+  callbacks:
+    early_stopping:
+      monitor: 'val/mae'
+      mode: 'min'
+      patience: 10
+
+    checkpoint:
+      filename: 'epoch_{epoch}-loss{val/ssim:.3f}'
+      save_top_k: 3
+      monitor: 'val/ssim'
+      mode: 'max'
+
+
+testing:
+  test_save_dir: 'logs/ddpm_diffusion/test_results/'
+  ckpt_path: ''
