@@ -3,4 +3,4 @@
 **/__pycache__/*
 src/logs/
 src/data/openfwi
-src/ckpt_path/
+**.ckpt
