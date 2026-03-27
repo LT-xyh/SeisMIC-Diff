@@ -7,41 +7,39 @@ from torchvision import transforms
 
 class ValMetrics:
     """
-    仅计算 PSNR / SSIM
-    - 默认按 [-1, 1] 评估（data_range=2.0），也可传 1.0 表示 [0,1]
-    - 若输入不在目标域，会自动映射：
-        [0,1] -> [-1,1] （当 data_range=2.0）
-        [-1,1] -> [0,1] （当 data_range=1.0）
+    Lightweight validation metrics container for PSNR and SSIM.
+
+    By default ``data_range=2.0`` means the tensors are expected in ``[-1, 1]``.
+    Passing ``data_range=1.0`` switches the target domain to ``[0, 1]``.
+    Inputs outside the expected domain are remapped automatically.
     """
 
     def __init__(self, data_range: float = 2.0, device: str | None = None):
-        self.device = device or ('cuda' if torch.cuda.is_available() else 'cpu')
-        assert data_range in (1.0, 2.0), "data_range 仅支持 1.0([0,1]) 或 2.0([-1,1])"
+        self.device = device or ("cuda" if torch.cuda.is_available() else "cpu")
+        assert data_range in (1.0, 2.0), "data_range only supports 1.0 ([0, 1]) or 2.0 ([-1, 1])."
         self.prefer_m11 = (data_range == 2.0)
 
         self.psnr = metrics.PSNR(data_range=data_range, device=self.device)
         self.ssim = metrics.SSIM(data_range=data_range, device=self.device)
 
-    # ---------- helpers ----------
     @staticmethod
     def _is_in_01(x: torch.Tensor) -> bool:
-        # 宽松判定：几乎在 [0,1]
+        # Use a slightly loose tolerance so small numerical drift does not trigger remapping.
         return (x.min() >= -1e-3) and (x.max() <= 1.0 + 1e-3)
 
     def _harmonize_domain(self, x: torch.Tensor) -> torch.Tensor:
-        """将张量统一到与 data_range 匹配的域。"""
-        if self.prefer_m11:  # 目标 [-1,1]
+        """Map tensors into the domain implied by ``data_range``."""
+        if self.prefer_m11:
             if self._is_in_01(x):
                 x = x * 2.0 - 1.0
             return x.clamp(-1.0, 1.0)
-        else:  # 目标 [0,1]
+        else:
             if not self._is_in_01(x):
                 x = (x + 1.0) / 2.0
             return x.clamp(0.0, 1.0)
 
-    # ---------- public api ----------
     def update(self, real: torch.Tensor, recon: torch.Tensor):
-        # dtype/device 对齐 + NaN/Inf 清理
+        # Align dtype/device first, then sanitize NaN and Inf values before metric updates.
         real = real.detach()
         recon = recon.detach()
         if recon.dtype != real.dtype:
@@ -49,18 +47,16 @@ class ValMetrics:
         real = torch.nan_to_num(real, nan=0.0, posinf=1.0, neginf=-1.0).to(self.device)
         recon = torch.nan_to_num(recon, nan=0.0, posinf=1.0, neginf=-1.0).to(self.device)
 
-        # 统一到与 data_range 一致的域
         real_h = self._harmonize_domain(real)
         recon_h = self._harmonize_domain(recon)
 
-        # 仅更新 PSNR / SSIM
         self.psnr.update((recon_h, real_h))
         self.ssim.update((recon_h, real_h))
 
     def compute(self):
         return {
-            'psnr': self.psnr.compute(),
-            'ssim': self.ssim.compute(),
+            "psnr": self.psnr.compute(),
+            "ssim": self.ssim.compute(),
         }
 
     def reset(self):
@@ -70,11 +66,12 @@ class ValMetrics:
 
 def get_psnr(original, reconstruct, data_range=1.0):
     """
-    计算 PSNR 值
-    :param original: 输入 (batch_size, channel, height, width)
-    :param reconstruct: 重建后 (batch_size, channel, height, width)
-    :param data_range: 数据范围
-    :return: psnr值
+    Compute PSNR.
+
+    Args:
+        original: Tensor shaped like ``(batch, channel, height, width)``.
+        reconstruct: Reconstructed tensor with the same shape.
+        data_range: Expected value range.
     """
     psnr_metric = _get_psnr_metric(data_range)
     psnr_metric.reset()
@@ -85,11 +82,12 @@ def get_psnr(original, reconstruct, data_range=1.0):
 
 def get_ssim(original, reconstruct, data_range=1.0):
     """
-    计算 SSIM 值
-    :param original: 输入 (batch_size, channel, height, width)
-    :param reconstruct: 重建后 (batch_size, channel, height, width)
-    :param data_range: 数据范围
-    :return: SSIM 值
+    Compute SSIM.
+
+    Args:
+        original: Tensor shaped like ``(batch, channel, height, width)``.
+        reconstruct: Reconstructed tensor with the same shape.
+        data_range: Expected value range.
     """
     ssim_metric = _get_ssim_metric(data_range)
     ssim_metric.reset()
@@ -99,22 +97,20 @@ def get_ssim(original, reconstruct, data_range=1.0):
 
 
 def expand_image_to_size(image, target_size=128):
-    """
-    将图像扩展到指定大小，通过零填充实现
-    """
+    """Zero-pad an image tensor so its spatial size becomes ``target_size x target_size``."""
     _, _, h, w = image.shape
     pad_h = (target_size - h) // 2
     pad_w = (target_size - w) // 2
-    # 计算左右上下需要填充的大小
     padding = (pad_w, target_size - w - pad_w, pad_h, target_size - h - pad_h)
     return F.pad(image, padding, "constant", 0)
 
 
 def get_is(reconstruct):
     """
-    计算 Inception Score (IS)
-    :param reconstruct: 生成的图像，形状为 (batch_size, channel, height, width)
-    :return: Inception Score
+    Compute Inception Score for generated images.
+
+    Args:
+        reconstruct: Tensor shaped like ``(batch, channel, height, width)``.
     """
     if reconstruct.shape[3] < 128:
         reconstruct = expand_image_to_size(reconstruct, 128)
@@ -129,10 +125,11 @@ def get_is(reconstruct):
 
 def get_fid(original, reconstruct):
     """
-    计算 Frechet Inception Distance (FID)
-    :param original: 原始图像，形状为 (batch_size, channel, height, width)
-    :param reconstruct: 重建后的图像，形状为 (batch_size, channel, height, width)
-    :return: FID Score
+    Compute Frechet Inception Distance.
+
+    Args:
+        original: Tensor shaped like ``(batch, channel, height, width)``.
+        reconstruct: Tensor shaped like ``(batch, channel, height, width)``.
     """
     if original.shape[3] < 128:
         original = expand_image_to_size(original, 128)
@@ -151,10 +148,11 @@ def get_fid(original, reconstruct):
 
 def get_kid(original, reconstruct):
     """
-    计算 KID
-    :param original: 原始图像，形状为 (batch_size, channel, height, width)
-    :param reconstruct: 重建后的图像，形状为 (batch_size, channel, height, width)
-    :return: kid_mean, kid_std
+    Compute Kernel Inception Distance and return ``(kid_mean, kid_std)``.
+
+    Args:
+        original: Tensor shaped like ``(batch, channel, height, width)``.
+        reconstruct: Tensor shaped like ``(batch, channel, height, width)``.
     """
     if original.shape[3] < 128:
         original = expand_image_to_size(original, 128)
@@ -164,19 +162,18 @@ def get_kid(original, reconstruct):
         original = original.repeat(1, 3, 1, 1)
     if reconstruct.shape[1] == 1:
         reconstruct = reconstruct.repeat(1, 3, 1, 1)
-    # 数据预处理：将 float32 转换为 uint8
+
+    # Convert float tensors to uint8-like tensors because the metric expects image-like inputs.
     preprocess = transforms.Compose([
         transforms.ToPILImage(),
         transforms.ToTensor(),
-        transforms.Lambda(lambda x: (x * 255).byte())
+        transforms.Lambda(lambda x: (x * 255).byte()),
     ])
-    # 对生成图像和真实图像进行预处理
     processed_generated_images = torch.stack([preprocess(img) for img in reconstruct])
     processed_real_images = torch.stack([preprocess(img) for img in original])
 
     num_samples = min(original.shape[0], reconstruct.shape[0])
-    # 设置 subset_size 为样本数量的一半或更小
-    subset_size = min(num_samples // 2, 10)  # 可以根据实际情况调整
+    subset_size = min(num_samples // 2, 10)
 
     kid = _get_kid_metric(subset_size)
     kid.update(processed_real_images, real=True)
@@ -231,7 +228,7 @@ def _get_kid_metric(subset_size: int):
 
 
 def test_evaluate():
-    # 模拟原始图像和重建图像数据
+    # Build random test tensors to sanity-check the metric helpers.
     batch_size = 4
     channels = 1
     height = 70
@@ -239,7 +236,6 @@ def test_evaluate():
     original_images = torch.rand(batch_size, channels, height, width)
     reconstructed_images = torch.rand(batch_size, channels, height, width)
 
-    # 计算各项指标
     psnr = get_psnr(original_images, reconstructed_images)
     print(f"PSNR: {psnr}")
     ssim = get_ssim(original_images, reconstructed_images)
@@ -256,13 +252,13 @@ def test_evaluate():
 
 
 def test_VAEMetrics():
-    # 模拟原始图像和重建图像数据
+    # Build random test tensors to sanity-check the running metric container.
     batch_size = 4
     channels = 1
     height = 70
     width = 70
-    original_images = torch.rand(batch_size, channels, height, width).to('cuda:4')
-    reconstructed_images = torch.rand(batch_size, channels, height, width).to('cuda:4')
+    original_images = torch.rand(batch_size, channels, height, width).to("cuda:4")
+    reconstructed_images = torch.rand(batch_size, channels, height, width).to("cuda:4")
     test_metrics = ValMetrics(device="cuda:4")
     test_metrics.reset()
     test_metrics.update(original_images, reconstructed_images)
