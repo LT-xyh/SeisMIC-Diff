@@ -1,0 +1,47 @@
+datasets:
+  use_data: [ 'depth_vel', 'migrated_image', 'well_log', 'horizon', 'rms_vel' ] # ('model', 'time_vel', 'migrate', 'well_log', 'horizens', 'rms_vel')
+  dataset_name: [ 'CurveVelA',  ]#[ 'FlatVelA', 'FlatVelB', 'CurveVelA', 'CurveVelB' ]
+  use_normalize: '-1_1'  # '01' '-1_1'
+  depth_velocity:
+    shape: [ 1, 70, 70 ]
+
+inversion_net:
+  base_channel: 32
+
+
+training:
+  lr: 1e-3
+  perceptual_weight: 0
+  ssim_weight: 0
+  use_ema: True
+  gradient_clip_val: None
+
+  max_epochs: 100
+  min_epochs: 50
+  device: [ 0, ]
+  precision: 'bf16-mixed'
+
+  dataloader:
+    batch_size: 200
+    num_workers: 2
+    prefetch_factor: 3
+
+  logging:
+    log_dir: 'logs/baselines/inversion_net/'
+    log_version: ''
+
+  callbacks:
+    early_stopping:
+      monitor: 'val/mse'
+      mode: 'min'
+      patience: 10
+
+    checkpoint:
+      filename: 'epoch_{epoch}-ssim{val/ssim:.3f}'
+      save_top_k: 3
+      monitor: 'val/ssim'
+      mode: 'max'
+
+testing:
+  test_save_dir: 'logs/baselines/inversion_net'
+  ckpt_path: ''

@@ -1,0 +1,70 @@
+datasets: # 建议：VelocityGAN 实验先别把 time_vel 放进 use_data（你当前 G 也没用它），减少IO和显存/内存压力
+  # 如果你确实要用 time_vel，那就需要改 G 的输入通道和 forward（属于“偏离论文结构”的改动）
+  use_data: [ 'depth_vel', 'migrated_image', 'well_log', 'horizon', 'rms_vel' ]
+  dataset_name: [ 'FlatVelA', 'FlatVelB', 'CurveVelA', 'CurveVelB' ]
+  use_normalize: '-1_1'
+  depth_velocity:
+    shape: [ 1, 70, 70 ]
+velocity_gan:
+  adv_w: 0.01          # 对抗项权重，先小一点更稳（0.1~1.0）
+  warmup_epochs: 5   # 前个epoch只训G的重建项
+  in_ch: 2
+  cond_ch: 2
+  base_channel: 64
+  d_base_channel: 16
+
+  gp_lambda: 50.0
+
+  # 关键：你现在数据在 [-1,1]，MAE/MSE 的量级和 [0,1] 不一样。
+  # 原先 50/100 很容易“内容损失压死对抗项”，G 会偏平滑，SSIM/边界不一定上得去。
+  # 先用中等权重起步，后面再按“平衡 MAE 和 MSE 的贡献”调整（见下文第3节）。
+  l1_w: 100
+  l2_w: 50
+
+training: # 关键：WGAN-GP 更常用 1e-4 级别（1e-3 往往偏大，D 会很快压制 G，指标抖/崩）
+  lr: 1e-4
+  lr_d: 1e-4           # TTUR：D 稍快一点通常更稳；若 D 过强就改成 1e-4
+
+  betas: [ 0.0, 0.9 ]  # WGAN-GP 常用组合:contentReference[oaicite:6]{index=6}
+  n_critic: 1
+
+  use_ema: True
+
+  lambda_grad: 0.1     # 想更清晰的界面/断层可开一点点；有伪影就降到 0
+
+  grad_clip_val: 1.0
+  grad_clip_algo: 'norm'
+  gradient_clip_val: 0.0
+
+  max_epochs: 100
+  min_epochs: 50
+  device: [ 0 ]
+
+  # 如果你发现 WGAN-GP 的 gp 计算在 bf16 下不稳（loss 抖/NaN），优先用 32-true 跑通 baseline
+  # 或者改代码：对 gp 部分禁用 autocast（更推荐，但需要改 wgan_gp_discriminator_loss）
+  precision: '32-true' #'bf16-mixed'
+
+  dataloader:
+    batch_size: 100
+    num_workers: 2
+    prefetch_factor: 3
+
+  logging:
+    log_dir: 'logs/baselines/velocity_gan/'
+    log_version: ''
+
+  callbacks:
+    early_stopping:
+      monitor: 'val/mae'
+      mode: 'min'
+      patience: 10
+
+    checkpoint:
+      filename: 'epoch_{epoch}-ssim_{val/ssim:.3f}'
+      save_top_k: 3
+      monitor: 'val/ssim'
+      mode: 'max'
+
+testing:
+  test_save_dir: 'logs/baselines/velocity_gan'   # 路径名保持一致
+  ckpt_path: ''
