@@ -1,6 +1,6 @@
 datasets:
   use_data: [ 'depth_vel', 'migrated_image', 'well_log', 'horizon', 'rms_vel' ] # ('model', 'time_vel', 'migrate', 'well_log', 'horizens', 'rms_vel')
-  dataset_name: [ 'CurveVelA',  ]#[ 'FlatVelA', 'FlatVelB', 'CurveVelA', 'CurveVelB' ]
+  dataset_name: [ 'FlatVelA', 'FlatVelB', 'CurveVelA', 'CurveVelB' ]
   use_normalize: '-1_1'  # '01' '-1_1'
   depth_velocity:
     shape: [ 1, 70, 70 ]
@@ -14,7 +14,7 @@ training:
   perceptual_weight: 0
   ssim_weight: 0
   use_ema: True
-  gradient_clip_val: None
+  gradient_clip_val: null
 
   max_epochs: 100
   min_epochs: 50

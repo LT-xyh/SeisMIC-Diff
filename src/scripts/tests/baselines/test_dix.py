@@ -5,7 +5,7 @@ import torch
 from lightning.pytorch.loggers import TensorBoardLogger, CSVLogger
 from torch.utils.data import Subset, DataLoader
 
-from baselines.smooth_dix.DixLightning import DixLightning
+from lightning_modules.baselines.DixLightning import DixLightning
 from data.dataset_openfwi import OpenFWI
 
 

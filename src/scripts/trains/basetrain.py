@@ -8,6 +8,16 @@ from torch.utils.data import DataLoader, Subset, ConcatDataset
 from data.dataset_openfwi import OpenFWI
 
 
+def _get_optional_float(value):
+    if value is None:
+        return None
+    if isinstance(value, str):
+        normalized = value.strip().lower()
+        if normalized in {"", "none", "null"}:
+            return None
+    return float(value)
+
+
 def _get_log_every_n_steps(conf, batch_size):
     # Respect explicit config override if present; Lightning requires >= 1.
     if hasattr(conf, "training") and hasattr(conf.training, "log_every_n_steps"):
@@ -79,13 +89,13 @@ def base_train(model, conf, fast_run=True, use_lr_finder=False, ckpt_path=None):
 
     # Trainer config: gradient_clip_val is config-driven; None means no clipping.
     trainer_kwargs = dict(precision=conf.training.precision, max_epochs=conf.training.max_epochs,
-                          min_epochs=conf.training.min_epochs, accelerator="gpu",  # strategy='ddp_spawn',
+                          min_epochs=conf.training.min_epochs, accelerator="gpu",
                           devices=conf.training.device, logger=[tensorboard_logger, csv_logger],
                           callbacks=[early_stop_callback, checkpoint_callback], log_every_n_steps=log_every_n_steps,
-                          # must be >= 1
                           fast_dev_run=fast_run, )
-    if conf.training.gradient_clip_val is not None:
-        trainer_kwargs["gradient_clip_val"] = conf.training.gradient_clip_val
+    gradient_clip_val = _get_optional_float(conf.training.gradient_clip_val)
+    if gradient_clip_val is not None:
+        trainer_kwargs["gradient_clip_val"] = gradient_clip_val
     trainer = lightning.Trainer(**trainer_kwargs)
 
     if use_lr_finder:

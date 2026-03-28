@@ -12,7 +12,7 @@ def train_ddpm_cond_diffusion():
     conf = OmegaConf.load("configs/ddpm_cond_diffusion.yaml")
     current_date = datetime.now()
     date_str = current_date.strftime("%y%m%d-%H")
-    conf.training.logging.log_version = date_str + "base-cond_rms-smooth_All-data"
+    conf.training.logging.log_version = date_str + "base-cond_All-data"
 
     model = DDPMConditionalDiffusionLightning(conf)
     base_train(model, conf, fast_run=True, use_lr_finder=False)

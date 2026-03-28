@@ -3,7 +3,7 @@ from datetime import datetime
 import torch
 from omegaconf import OmegaConf
 
-from baselines.inversion_net.InversionNetLightning import InversionNetLightning
+from lightning_modules.baselines.InversionNetLightning import InversionNetLightning
 from scripts.trains.basetrain import base_train
 
 

@@ -2,7 +2,7 @@ import torch
 from diffusers import EMAModel
 from torch.nn import functional as F
 
-from baselines.inversion_net.InversionNet import MultiConstraintInversionNet
+from models.baselines.InversionNet import MultiConstraintInversionNet
 from lightning_modules.base_lightning import BaseLightningModule
 
 

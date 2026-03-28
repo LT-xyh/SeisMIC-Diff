@@ -14,7 +14,7 @@ training:
   perceptual_weight: 0
   ssim_weight: 0
   use_ema: True
-  gradient_clip_val: None
+  gradient_clip_val: null
 
   max_epochs: 100
   min_epochs: 50

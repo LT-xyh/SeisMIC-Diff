@@ -6,6 +6,16 @@ from torch.utils.data import ConcatDataset, DataLoader, Subset
 from data.dataset_openfwi import OpenFWI
 
 
+def _get_optional_float(value):
+    if value is None:
+        return None
+    if isinstance(value, str):
+        normalized = value.strip().lower()
+        if normalized in {"", "none", "null"}:
+            return None
+    return float(value)
+
+
 def base_test(model, conf, fast_run=False):
     test_dataset_list = []
     for dataset in conf.datasets.dataset_name:
@@ -47,30 +57,20 @@ def base_test(model, conf, fast_run=False):
         every_n_epochs=1,
     )
 
-    if conf.training.gradient_clip_val is None:
-        trainer = lightning.Trainer(
-            precision=conf.training.precision,
-            gradient_clip_val=1.0,
-            max_epochs=conf.training.max_epochs,
-            min_epochs=conf.training.min_epochs,
-            accelerator="gpu",
-            devices=conf.training.device,
-            logger=[tensorboard_logger, csv_logger],
-            callbacks=[early_stop_callback, checkpoint_callback],
-            log_every_n_steps=512 // conf.training.dataloader.batch_size,
-            fast_dev_run=fast_run,  # Run only a single batch when debugging the test pipeline.
-        )
-    else:
-        trainer = lightning.Trainer(
-            precision=conf.training.precision,
-            max_epochs=conf.training.max_epochs,
-            min_epochs=conf.training.min_epochs,
-            accelerator="gpu",
-            devices=conf.training.device,
-            logger=[tensorboard_logger, csv_logger],
-            callbacks=[early_stop_callback, checkpoint_callback],
-            log_every_n_steps=512 // conf.training.dataloader.batch_size,
-            fast_dev_run=fast_run,  # Run only a single batch when debugging the test pipeline.
-        )
+    trainer_kwargs = dict(
+        precision=conf.training.precision,
+        max_epochs=conf.training.max_epochs,
+        min_epochs=conf.training.min_epochs,
+        accelerator="gpu",
+        devices=conf.training.device,
+        logger=[tensorboard_logger, csv_logger],
+        callbacks=[early_stop_callback, checkpoint_callback],
+        log_every_n_steps=512 // conf.training.dataloader.batch_size,
+        fast_dev_run=fast_run,  # Run only a single batch when debugging the test pipeline.
+    )
+    gradient_clip_val = _get_optional_float(conf.training.gradient_clip_val)
+    if gradient_clip_val is not None:
+        trainer_kwargs["gradient_clip_val"] = gradient_clip_val
+    trainer = lightning.Trainer(**trainer_kwargs)
 
     trainer.test(model, dataloaders=test_loader)

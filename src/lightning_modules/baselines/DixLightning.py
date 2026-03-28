@@ -1,6 +1,6 @@
 import torch.nn.functional as F
 
-from baselines.smooth_dix.dix import SmoothDix
+from models.baselines.dix import SmoothDix
 from lightning_modules.base_lightning import BaseLightningModule
 
 

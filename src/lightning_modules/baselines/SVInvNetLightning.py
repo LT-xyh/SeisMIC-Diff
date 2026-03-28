@@ -2,7 +2,7 @@ import torch
 from torch.nn import functional as F
 from diffusers import EMAModel
 
-from baselines.sv_inv_net.SVInvNet import MultiConstraintSVInvNet
+from models.baselines.SVInvNet import MultiConstraintSVInvNet
 from lightning_modules.base_lightning import BaseLightningModule
 
 

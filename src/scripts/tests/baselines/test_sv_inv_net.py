@@ -3,7 +3,7 @@ from datetime import datetime
 import torch
 from omegaconf import OmegaConf
 
-from baselines.sv_inv_net.SVInvNetLightning import SVInvNetLightning
+from lightning_modules.baselines.SVInvNetLightning import SVInvNetLightning
 from scripts.tests.basetest import base_test
 
 

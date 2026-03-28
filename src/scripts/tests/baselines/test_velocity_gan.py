@@ -3,7 +3,7 @@ from datetime import datetime
 import torch
 from omegaconf import OmegaConf
 
-from baselines.velocity_gan.VelocityGANLightning import VelocityGANLightning
+from lightning_modules.baselines.VelocityGANLightning import VelocityGANLightning
 from scripts.tests.basetest import base_test
 
 

@@ -1,6 +1,6 @@
 from diffusers import EMAModel
 
-from baselines.velocity_gan.VelocityGAN import *
+from models.baselines.VelocityGAN import *
 from lightning_modules.base_lightning import BaseLightningModule
 
 
